@@ -1,6 +1,6 @@
-import { git } from "./git";
-import { GitNotes } from "./git-notes";
-import { IConfig, getConfig } from "./project-config";
+import { git } from "./git.js";
+import { GitNotes } from "./git-notes.js";
+import { IConfig, getConfig } from "./project-config.js";
 
 export class MailCommitMapping {
     public readonly config: IConfig = getConfig();
@@ -9,12 +9,10 @@ export class MailCommitMapping {
 
     public constructor(workDir?: string) {
         this.workDir = workDir;
-        this.mail2CommitNotes = new GitNotes(workDir,
-                                             "refs/notes/mail-to-commit");
+        this.mail2CommitNotes = new GitNotes(workDir, "refs/notes/mail-to-commit");
     }
 
-    public async getGitGitCommitForMessageId(messageID: string):
-        Promise<string | undefined> {
+    public async getGitGitCommitForMessageId(messageID: string): Promise<string | undefined> {
         return await this.mail2CommitNotes.getString(messageID);
     }
 
@@ -26,9 +24,11 @@ export class MailCommitMapping {
         return await this.update(true);
     }
 
-    private async update(includeNotesRef?: boolean,
-                         includeUpstreamBranches?: boolean,
-                         includeGitsterBranches?: boolean): Promise<void> {
+    private async update(
+        includeNotesRef?: boolean,
+        includeUpstreamBranches?: boolean,
+        includeGitsterBranches?: boolean,
+    ): Promise<void> {
         const refs: string[] = [];
         if (includeNotesRef) {
             refs.push("refs/notes/mail-to-commit:refs/notes/mail-to-commit");
@@ -42,8 +42,9 @@ export class MailCommitMapping {
             refs.push(`+refs/heads/*:refs/remotes/${this.config.repo.maintainerBranch}/*`);
         }
         if (refs.length) {
-            await git(["fetch", `https://github.com/${this.config.repo.owner}/${this.config.repo.name}`, ...refs],
-                { workDir: this.workDir });
+            await git(["fetch", `https://github.com/${this.config.repo.owner}/${this.config.repo.name}`, ...refs], {
+                workDir: this.workDir,
+            });
         }
     }
 }

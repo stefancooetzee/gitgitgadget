@@ -10,19 +10,21 @@ a workflow.  The default is to delete branches older than two days.
 // ref level results of the GraphQL query
 
 declare type refGraph = {
-    node: {                         // branches as refs
-        name: string,
-        id: string,
+    node: {
+        // branches as refs
+        name: string;
+        id: string;
         pulls: {
-            edges: [                // pull requests
+            edges: [
+                // pull requests
                 {
                     node: {
-                        number: number,
-                    }
-                }
-            ]
-        }
-    }
+                        number: number;
+                    };
+                },
+            ];
+        };
+    };
 };
 
 // repository level results of the GraphQL query
@@ -30,9 +32,9 @@ declare type refGraph = {
 declare type repositoryGraph = {
     repository: {
         refs: {
-            edges: refGraph[]
-        }
-    }
+            edges: refGraph[];
+        };
+    };
 };
 
 /**
@@ -46,9 +48,9 @@ declare type repositoryGraph = {
  * @param dryRun skip deletion if true
  */
 export type deletionOptions = {
-    hours?: number,
-    minutes?: number,
-    dryRun?: boolean,
+    hours?: number;
+    minutes?: number;
+    dryRun?: boolean;
 };
 
 /**
@@ -57,9 +59,12 @@ export type deletionOptions = {
  * @param repo name of repository on GitHub
  * @param options deletionOptions to override default of two days
  */
-export async function deleteBranches(octocat: Octokit, owner: string,
-    repo: string, options: deletionOptions = {}): Promise<void> {
-
+export async function deleteBranches(
+    octocat: Octokit,
+    owner: string,
+    repo: string,
+    options: deletionOptions = {},
+): Promise<void> {
     if (!owner || !repo) {
         throw new Error("Missing owner or repo name.");
     }
@@ -109,15 +114,14 @@ export async function deleteBranches(octocat: Octokit, owner: string,
     // console.log(result.repository.refs.edges);
 
     await Promise.all(
-        result.repository.refs.edges.map(ref => {
+        result.repository.refs.edges.map((ref) => {
             const br = ref.node;
             const name = br.name;
-            const suffix = name.match(/ggg[_\-]test-branch-\S+?[\-_](.*)/);
+            const suffix = name.match(/ggg[_-]test-branch-\S+?[-_](.*)/);
 
             if (suffix && suffix[1] < expireDate) {
                 if (br.pulls.edges.length) {
-                    console.log(
-                        `Closing PR ${br.pulls.edges[0].node.number}`);
+                    console.log(`Closing PR ${br.pulls.edges[0].node.number}`);
                 }
                 console.log(`Deleting branch ${br.name}`);
                 const mutate = `mutation DeleteBranch {
@@ -129,6 +133,6 @@ export async function deleteBranches(octocat: Octokit, owner: string,
                     console.log(`Deletion of refId: "${br.id}" skipped`);
                 }
             }
-        })
+        }),
     );
 }

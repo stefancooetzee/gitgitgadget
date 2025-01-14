@@ -1,8 +1,8 @@
-import { CIHelper } from "./ci-helper";
-import { isDirectory } from "./fs-util";
-import { getConfig } from "./gitgitgadget-config";
-import { getVar } from "./gitgitgadget";
-import { IConfig, loadConfig, setConfig } from "./project-config";
+import { CIHelper } from "./ci-helper.js";
+import { isDirectory } from "./fs-util.js";
+import { getConfig } from "./gitgitgadget-config.js";
+import { getVar } from "./gitgitgadget.js";
+import { IConfig, loadConfig, setConfig } from "./project-config.js";
 import path from "path";
 
 export interface actionInterface {
@@ -68,15 +68,17 @@ async function getExternalConfig(file: string): Promise<IConfig> {
 }
 
 function lintConfig(config: IConfig): void {
-    if (!config.hasOwnProperty("project")) {
-        throw new Error(`User configurations must have a 'project:'.  Not found in ${path}`);
+    if (!Object.prototype.hasOwnProperty.call(config, "project")) {
+        throw new Error(
+            `User configurations must have a 'project:'.  Not found in:\n${JSON.stringify(config, null, 2)}`,
+        );
     }
 
     if (!config.repo.owner.match(/^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i)) {
-        throw new Error(`Invalid 'owner' ${config.repo.owner} in ${path}`);
+        throw new Error(`Invalid 'owner' ${config.repo.owner} in\n${JSON.stringify(config, null, 2)}`);
     }
 
     if (!config.repo.baseOwner.match(/^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i)) {
-        throw new Error(`Invalid 'baseOwner' ${config.repo.baseOwner} in ${path}`);
+        throw new Error(`Invalid 'baseOwner' ${config.repo.baseOwner} in\n${JSON.stringify(config, null, 2)}`);
     }
 }

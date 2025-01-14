@@ -1,5 +1,5 @@
-import { emptyBlobName, git, revParse } from "./git";
-import { fromJSON, toJSON } from "./json-util";
+import { emptyBlobName, git, revParse } from "./git.js";
+import { fromJSON, toJSON } from "./json-util.js";
 
 export class GitNotes {
     public static readonly defaultNotesRef = "refs/notes/gitgitgadget";
@@ -23,7 +23,7 @@ export class GitNotes {
         const obj = await this.key2obj(key);
         try {
             return await this.notes("show", obj);
-        } catch (reason) {
+        } catch (_reason) {
             return undefined;
         }
     }
@@ -32,11 +32,9 @@ export class GitNotes {
         return await this.setString(key, toJSON(value), force);
     }
 
-    public async setString(key: string, value: string, force?: boolean):
-        Promise<void> {
+    public async setString(key: string, value: string, force?: boolean): Promise<void> {
         const obj = await this.key2obj(key);
-        if (obj !== emptyBlobName &&
-            !await revParse(`${obj}^{blob}`, this.workDir)) {
+        if (obj !== emptyBlobName && !(await revParse(`${obj}^{blob}`, this.workDir))) {
             try {
                 /*
                  * Annotate the notes ref's tip itself, just to make sure that
@@ -45,7 +43,7 @@ export class GitNotes {
                 await this.notes("add", "-m", key, this.notesRef);
                 // Remove the note to avoid clutter
                 await this.notes("remove", `${this.notesRef}^`);
-            } catch (reason) {
+            } catch (_reason) {
                 /*
                  * Apparently there is no notes ref yet. Initialize it, by
                  * annotating the empty blob and immediately removing the note.
@@ -61,8 +59,7 @@ export class GitNotes {
         }
     }
 
-    public async appendCommitNote(commit: string, note: string):
-        Promise<string> {
+    public async appendCommitNote(commit: string, note: string): Promise<string> {
         return await this.notes("append", "-m", note, commit);
     }
 
@@ -76,12 +73,8 @@ export class GitNotes {
     }
 
     public async update(url: string): Promise<void> {
-        if (this.notesRef === "refs/notes/gitgitgadget" ||
-            this.notesRef === "refs/notes/commit-to-mail" ||
-            this.notesRef === "refs/notes/mail-to-commit") {
-            await git(["fetch", url,
-                       `+${this.notesRef}:${this.notesRef}`],
-                      { workDir: this.workDir });
+        if (this.notesRef.match(/^refs\/notes\/(gitgitgadget|commit-to-mail|mail-to-commit)$/)) {
+            await git(["fetch", url, `+${this.notesRef}:${this.notesRef}`], { workDir: this.workDir });
         } else {
             throw new Error(`Don't know how to update ${this.notesRef}`);
         }

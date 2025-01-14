@@ -1,7 +1,7 @@
-import { IPRCommit } from "./github-glue";
+import { IPRCommit } from "./github-glue.js";
 
 export interface ILintError {
-    checkFailed: boolean;           // true if check failed
+    checkFailed: boolean; // true if check failed
     message: string;
 }
 
@@ -19,9 +19,9 @@ export class LintCommit {
     private messages: string[] = [];
     private maxColumns = 76;
 
-    public constructor(patch: IPRCommit, options?: ILintOptions | undefined) {
+    public constructor(patch: IPRCommit, options?: ILintOptions) {
         this.blocked = false;
-        this.lines =  patch.message.split("\n");
+        this.lines = patch.message.split("\n");
         this.patch = patch;
 
         if (options !== undefined) {
@@ -35,40 +35,46 @@ export class LintCommit {
      * Linter method to run checks on the commit message.
      */
     public lint(): ILintError | void {
+        const phase1 = [this.commitViable];
 
-        const phase1 = [
-            this.commitViable
-        ];
-
-        const phase2 = [            // checks to always run
+        const phase2 = [
+            // checks to always run
             this.commitMessageLength,
             this.bangPrefix,
             this.lowerCaseAfterPrefix,
-            this.signedOffBy
+            this.signedOffBy,
         ];
 
-        const phase3 = [            // checks if phase1 was successful
+        const phase3 = [
+            // checks if phase1 was successful
             this.commitTextLength,
-            this.moreThanAHyperlink
+            this.moreThanAHyperlink,
         ];
 
-        phase1.map((linter) => { linter(); });
+        phase1.map((linter) => {
+            linter();
+        });
 
         const phase1Okay = false === this.blocked;
 
-        phase2.map((linter) => { linter(); });
+        phase2.map((linter) => {
+            linter();
+        });
 
         if (phase1Okay) {
-            phase3.map((linter) => { linter(); });
+            phase3.map((linter) => {
+                linter();
+            });
         }
 
         if (this.messages.length) {
             this.messages.unshift(`\`${this.lines[0]}\``);
-            return { checkFailed: this.blocked,
-                     message: `There ${this.messages.length > 1 ?
-                     "are issues" : "is an issue"} in commit ${
-                     this.patch.commit}:\n${this.messages.join("\n")}`,
-                };
+            return {
+                checkFailed: this.blocked,
+                message: `There ${this.messages.length > 1 ? "are issues" : "is an issue"} in commit ${
+                    this.patch.commit
+                }:\n${this.messages.join("\n")}`,
+            };
         }
     }
 
@@ -94,8 +100,7 @@ export class LintCommit {
 
     private commitMessageLength = (): void => {
         if (this.lines[0].length > this.maxColumns) {
-            this.block(`First line of commit message is too long (> ${
-                this.maxColumns} columns)`);
+            this.block(`First line of commit message is too long (> ${this.maxColumns} columns)`);
         }
     };
 
@@ -105,33 +110,32 @@ export class LintCommit {
 
     private commitTextLength = (): void => {
         if (this.lines.length > 2 && this.lines[1].length) {
-            this.block("The first line must be separated from the rest by an "
-                        + "empty line");
+            this.block("The first line must be separated from the rest by an empty line");
         }
 
-        for (let i = 1; i < this.lines.length; i++) {
-            if (this.lines[i].length > this.maxColumns &&
+        for (const line of this.lines) {
+            if (
+                line.length > this.maxColumns &&
                 // Allow long lines if prefixed with whitespace (ex. quoted error messages)
-                (! this.lines[i].match(/^\s+/)) &&
-                // Allow long lines if they cannot be wrapped at some
-                // white-space character, e.g. URLs. To allow a short
-                // preamble such as `ref [1] <URL>` lines, we skip the
-                // first 10 (arbitrary) characters.
-                this.lines[i].slice(10).match(/\s/)) {
-                this.block(`Lines in the body of the commit messages ${""
-                    }should be wrapped between 60 and ${
-                    this.maxColumns} characters.\n`
-                     + `Indented lines, and lines without whitespace, are exempt`);
+                !line.match(/^\s+/) &&
+                // Allow long lines if they cannot be wrapped at some white-space character, e.g. URLs. To allow a
+                // short preamble such as `ref [1] <URL>` lines, we skip the first 10 (arbitrary) characters.
+                line.slice(10).match(/\s/)
+            ) {
+                this.block(
+                    `Lines in the body of the commit messages should be wrapped between 60 and ${
+                        this.maxColumns
+                    } characters.\nIndented lines, and lines without whitespace, are exempt`,
+                );
                 break;
             }
         }
     };
 
     // Verify if the first line starts with a prefix (e.g. tests:), it continues
-    // in lower-case (except for ALL_CAPS as that is likely to be a code
-    // identifier)
+    // in lower-case (except for ALL_CAPS as that is likely to be a code identifier)
 
-    private lowerCaseAfterPrefix = (): void =>{
+    private lowerCaseAfterPrefix = (): void => {
         const match = this.lines[0].match(/^\S+?:\s*?([A-Z][a-z ])/);
 
         if (match) {
@@ -141,7 +145,7 @@ export class LintCommit {
 
     // Reject commits that appear to require rebasing
 
-    private bangPrefix = (): void =>{
+    private bangPrefix = (): void => {
         if (this.lines[0].match(/^(squash|fixup|amend)!/)) {
             this.block("Rebase needed to squash commit");
         }
@@ -150,7 +154,7 @@ export class LintCommit {
     // Verify there is a Signed-off-by: line - DCO check does this
     // already, but put out a message if it is indented
 
-    private signedOffBy = (): void =>{
+    private signedOffBy = (): void => {
         let signedFound = false;
 
         this.lines.map((line) => {
@@ -175,13 +179,12 @@ export class LintCommit {
     // Low hanging fruit: check the first line.
     // Hyperlink validation is NOT part of the test.
 
-    private moreThanAHyperlink = (): void =>{
+    private moreThanAHyperlink = (): void => {
         const line = this.lines[2];
         const match = line.match(/^(\w*)\s*https*:\/\/\S+\s*(\w*)/);
 
         if (match) {
-            if (!match[1].length && !match[2].length &&
-                this.lines.length === 5) {
+            if (!match[1].length && !match[2].length && this.lines.length === 5) {
                 this.block("A hyperlink requires some explanation");
             }
         }

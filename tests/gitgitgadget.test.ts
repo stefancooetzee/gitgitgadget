@@ -1,14 +1,16 @@
 import { expect, jest, test } from "@jest/globals";
-import { git, gitCommandExists } from "../lib/git";
-import { GitNotes } from "../lib/git-notes";
-import { GitGitGadget, IGitGitGadgetOptions } from "../lib/gitgitgadget";
-import { getConfig } from "../lib/gitgitgadget-config";
-import { PatchSeries } from "../lib/patch-series";
-import { IPatchSeriesMetadata } from "../lib/patch-series-metadata";
-import { testCreateRepo } from "./test-lib";
+import { fileURLToPath } from "url";
+import { git, gitCommandExists } from "../lib/git.js";
+import { GitNotes } from "../lib/git-notes.js";
+import { GitGitGadget, IGitGitGadgetOptions } from "../lib/gitgitgadget.js";
+import { getConfig } from "../lib/gitgitgadget-config.js";
+import { PatchSeries } from "../lib/patch-series.js";
+import { IPatchSeriesMetadata } from "../lib/patch-series-metadata.js";
+import { testCreateRepo } from "./test-lib.js";
 
 // This test script might take quite a while to run
 jest.setTimeout(60000);
+const sourceFileName = fileURLToPath(import.meta.url);
 
 getConfig();
 
@@ -47,10 +49,8 @@ Test H. Dev (1):
 
 
 base-commit: b4bc10cab67df9962ae52c82af9e1a43fd83d806
-Published-As: https://github.com/gitgitgadget/git/releases/tag/${
-    "pr-1/somebody/master-v1".replace(/\//g, "%2F")}
-Fetch-It-Via: git fetch https://github.com/gitgitgadget/git ${
-    ""}pr-1/somebody/master-v1
+Published-As: https://github.com/gitgitgadget/git/releases/tag/${"pr-1/somebody/master-v1".replace(/\//g, "%2F")}
+Fetch-It-Via: git fetch https://github.com/gitgitgadget/git pr-1/somebody/master-v1
 Pull-Request: https://github.com/gitgitgadget/git/pull/1
 --${" "}
 gitgitgadget
@@ -167,7 +167,7 @@ test("generate tag/notes from a Pull Request", async () => {
             }
         },
     };
-    const repo = await testCreateRepo(__filename);
+    const repo = await testCreateRepo(sourceFileName);
     const notes = new GitNotes(repo.workDir);
 
     const gitGitGadgetOptions: IGitGitGadgetOptions = {
@@ -197,23 +197,30 @@ test("generate tag/notes from a Pull Request", async () => {
 
     const pullRequestURL = "https://github.com/gitgitgadget/git/pull/1";
     const pullRequestTitle = "My first Pull Request!";
-    const pullRequestBody = `This Pull Request contains some really important ${
-        ""}changes that I would love to have included in ${
-        ""}[git.git](https://github.com/git/git).
-
-Cc: Some Body <somebody@example.com>
-`;
+    const pullRequestBody = [
+        "This Pull Request contains some really important " +
+            "changes that I would love to have included in [git.git](https://github.com/git/git).",
+        "",
+        "Cc: Some Body <somebody@example.com>",
+        "",
+    ].join("\n");
 
     await git(["config", "user.name", "GitGitGadget"], repo.options);
-    await git(["config", "user.email", "gitgitgadget@example.com"],
-              repo.options);
+    await git(["config", "user.email", "gitgitgadget@example.com"], repo.options);
 
-    const patches =
-        await PatchSeries.getFromNotes(notes, pullRequestURL, pullRequestTitle,
-                                       pullRequestBody,
-                                       "gitgitgadget:next", baseCommit,
-                                       "somebody:master", headCommit,
-                                       {}, "GitHub User", undefined);
+    const patches = await PatchSeries.getFromNotes(
+        notes,
+        pullRequestURL,
+        pullRequestTitle,
+        pullRequestBody,
+        "gitgitgadget:next",
+        baseCommit,
+        "somebody:master",
+        headCommit,
+        {},
+        "GitHub User",
+        undefined,
+    );
 
     expect(patches.coverLetter).toEqual(`My first Pull Request!
 
@@ -221,8 +228,10 @@ This Pull Request contains some really important changes that I would love
 to have included in git.git [https://github.com/git/git].`);
 
     const mails: string[] = [];
-    const midRegex = new RegExp("<(pull|[0-9a-f]{40})\\.\\d+(\\.v\\d+)?"
-        + "\\.git(\\.*\\d*)\\.gitgitgadget@example\\.com>", "g");
+    const midRegex = new RegExp(
+        "<(pull|[0-9a-f]{40})\\.\\d+(\\.v\\d+)?" + "\\.git(\\.*\\d*)\\.gitgitgadget@example\\.com>",
+        "g",
+    );
     // eslint-disable-next-line @typescript-eslint/require-await
     async function send(mail: string): Promise<string> {
         if (mails.length === 0) {
@@ -233,28 +242,31 @@ to have included in git.git [https://github.com/git/git].`);
         return "Message-ID";
     }
 
-    const metadata = await patches.generateAndSend(logger, send, undefined,
-                                                   pullRequestURL);
+    const metadata = await patches.generateAndSend(logger, send, undefined, pullRequestURL);
 
-    expect(metadata?.coverLetterMessageId)
-        .toMatch(/pull\.1\.git\.\d+\.gitgitgadget@example\.com/);
+    expect(metadata?.coverLetterMessageId).toMatch(/pull\.1\.git\.\d+\.gitgitgadget@example\.com/);
     expect(mails).toEqual(expectedMails);
 
     expect(await repo.commit("D")).not.toEqual("");
 
     const headCommit2 = await repo.revParse("HEAD");
-    const patches2 =
-        await PatchSeries.getFromNotes(notes, pullRequestURL, pullRequestTitle,
-                                       pullRequestBody,
-                                       "gitgitgadget:next", baseCommit,
-                                       "somebody:master", headCommit2,
-                                       {}, "GitHub User", undefined);
+    const patches2 = await PatchSeries.getFromNotes(
+        notes,
+        pullRequestURL,
+        pullRequestTitle,
+        pullRequestBody,
+        "gitgitgadget:next",
+        baseCommit,
+        "somebody:master",
+        headCommit2,
+        {},
+        "GitHub User",
+        undefined,
+    );
     mails.splice(0);
-    const metadata2 = await patches2.generateAndSend(logger, send, undefined,
-                                                     pullRequestURL);
+    const metadata2 = await patches2.generateAndSend(logger, send, undefined, pullRequestURL);
 
-    expect(metadata2?.coverLetterMessageId)
-        .toMatch(/pull\.1\.v2\.git\.\d+\.gitgitgadget@example\.com/);
+    expect(metadata2?.coverLetterMessageId).toMatch(/pull\.1\.v2\.git\.\d+\.gitgitgadget@example\.com/);
     expect(mails).toHaveLength(5);
     if (await gitCommandExists("range-diff", repo.workDir)) {
         expect(mails[0]).toMatch(/Range-diff vs v1:\n[^]*\n -: .* 4: /);
@@ -265,12 +277,10 @@ to have included in git.git [https://github.com/git/git].`);
     expect(seriesMeta).not.toBeNull();
     expect(seriesMeta?.coverLetterMessageId).not.toBeUndefined();
     const coverMid: string | undefined = seriesMeta?.coverLetterMessageId;
-    expect(coverMid)
-        .toMatch(/pull\.1\.v2\.git\.\d+\.gitgitgadget@example\.com/);
+    expect(coverMid).toMatch(/pull\.1\.v2\.git\.\d+\.gitgitgadget@example\.com/);
     expect(seriesMeta?.referencesMessageIds).not.toBeUndefined();
     const refMid: string | undefined = seriesMeta?.referencesMessageIds?.[0];
-    expect(refMid)
-        .toMatch(/pull\.1\.git\.\d+\.gitgitgadget@example\.com/);
+    expect(refMid).toMatch(/pull\.1\.git\.\d+\.gitgitgadget@example\.com/);
     expect(seriesMeta).toEqual({
         baseCommit,
         baseLabel: "gitgitgadget:next",
@@ -280,15 +290,12 @@ to have included in git.git [https://github.com/git/git].`);
         iteration: 2,
         latestTag: "pr-1/somebody/master-v2",
         pullRequestURL,
-        referencesMessageIds: [
-            refMid,
-        ],
+        referencesMessageIds: [refMid],
     } as IPatchSeriesMetadata);
 
     // verify that the tag was generated correctly
-    expect((await git(["cat-file", "tag", "pr-1/somebody/master-v2"],
-                      repo.options))
-        .replace(/^[^]*?\n\n/, "")).toEqual(`My first Pull Request!
+    expect((await git(["cat-file", "tag", "pr-1/somebody/master-v2"], repo.options)).replace(/^[^]*?\n\n/, ""))
+        .toEqual(`My first Pull Request!
 
 This Pull Request contains some really important changes that I would love
 to have included in git.git [https://github.com/git/git].
@@ -322,14 +329,12 @@ In-Reply-To: https://dummy.com/?mid=${refMid}`);
 });
 
 test("allow/disallow", async () => {
-    const repo = await testCreateRepo(__filename);
+    const repo = await testCreateRepo(sourceFileName);
     const workDir = repo.workDir;
-    const remote = await testCreateRepo(__filename, "-remote");
+    const remote = await testCreateRepo(sourceFileName, "-remote");
 
     await git(["config", "gitgitgadget.workDir", workDir], { workDir });
-    await git(["config",
-               "gitgitgadget.publishRemote", remote.workDir],
-              { workDir });
+    await git(["config", "gitgitgadget.publishRemote", remote.workDir], { workDir });
     await git(["config", "gitgitgadget.smtpUser", "test"], { workDir });
     await git(["config", "gitgitgadget.smtpHost", "test"], { workDir });
     await git(["config", "gitgitgadget.smtpPass", "test"], { workDir });
@@ -340,27 +345,21 @@ test("allow/disallow", async () => {
     const gitGitGadget = await GitGitGadget.get(workDir);
 
     // pretend that the notes ref had been changed in the meantime
-    await notes.set("",
-                    { allowedUsers: ["first-one"] } as IGitGitGadgetOptions,
-                    true);
+    await notes.set("", { allowedUsers: ["first-one"] } as IGitGitGadgetOptions, true);
 
     expect(gitGitGadget.isUserAllowed("second-one")).toBeFalsy();
-    expect(await gitGitGadget.allowUser("first-one", "second-one"))
-        .toBeTruthy();
-    expect(await gitGitGadget.allowUser("first-one", "second-one"))
-        .toBeFalsy();
+    expect(await gitGitGadget.allowUser("first-one", "second-one")).toBeTruthy();
+    expect(await gitGitGadget.allowUser("first-one", "second-one")).toBeFalsy();
     expect(gitGitGadget.isUserAllowed("second-one")).toBeTruthy();
-    expect(await gitGitGadget.denyUser("first-one", "second-one"))
-        .toBeTruthy();
-    expect(await gitGitGadget.denyUser("first-one", "second-one"))
-        .toBeFalsy();
+    expect(await gitGitGadget.denyUser("first-one", "second-one")).toBeTruthy();
+    expect(await gitGitGadget.denyUser("first-one", "second-one")).toBeFalsy();
     expect(gitGitGadget.isUserAllowed("second-one")).toBeFalsy();
 });
 
 test("allow/disallow with env vars", async () => {
-    const repo = await testCreateRepo(__filename);
+    const repo = await testCreateRepo(sourceFileName);
     const workDir = repo.workDir;
-    const remote = await testCreateRepo(__filename, "-remote");
+    const remote = await testCreateRepo(sourceFileName, "-remote");
 
     process.env.GITGITGADGET_WORKDIR = workDir;
     process.env.GITGITGADGET_PUBLISHREMOTE = remote.workDir;
@@ -377,6 +376,5 @@ test("allow/disallow with env vars", async () => {
     await notes.set("", { allowedUsers: ["first-one"] } as IGitGitGadgetOptions, true);
 
     expect(gitGitGadget.isUserAllowed("second-one")).toBeFalsy();
-    expect(await gitGitGadget.allowUser("first-one", "second-one"))
-        .toBeTruthy();
+    expect(await gitGitGadget.allowUser("first-one", "second-one")).toBeTruthy();
 });
